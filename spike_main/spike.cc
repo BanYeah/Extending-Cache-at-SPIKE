@@ -39,9 +39,11 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --varch=<name>        RISC-V Vector uArch string [default %s]\n", DEFAULT_VARCH);
   fprintf(stderr, "  --pc=<address>        Override ELF entry point\n");
   fprintf(stderr, "  --hartids=<a,b,...>   Explicitly specify hartids, default is 0,1,...\n");
+  /* Cache Simulator */
   fprintf(stderr, "  --ic=<S>:<W>:<B>      Instantiate a cache model with S sets,\n");
   fprintf(stderr, "  --dc=<S>:<W>:<B>        W ways, and B-byte blocks (with S and\n");
   fprintf(stderr, "  --l2=<S>:<W>:<B>        B both powers of 2).\n");
+  /* --------------- */
   fprintf(stderr, "  --device=<P,B,A>      Attach MMIO plugin device from an --extlib library\n");
   fprintf(stderr, "                          P -- Name of the MMIO plugin\n");
   fprintf(stderr, "                          B -- Base memory address of the device\n");
@@ -226,9 +228,11 @@ int main(int argc, char** argv)
   reg_t start_pc = reg_t(-1);
   std::vector<std::pair<reg_t, mem_t*>> mems;
   std::vector<std::pair<reg_t, abstract_device_t*>> plugin_devices;
+  /* Cache Simulator */
   std::unique_ptr<icache_sim_t> ic;
   std::unique_ptr<dcache_sim_t> dc;
   std::unique_ptr<cache_sim_t> l2;
+  /* --------------- */
   bool log_cache = false;
   bool log_commits = false;
   const char *log_path = nullptr;
@@ -324,9 +328,11 @@ int main(int argc, char** argv)
   parser.option(0, "rbb-port", 1, [&](const char* s){use_rbb = true; rbb_port = atoul_safe(s);});
   parser.option(0, "pc", 1, [&](const char* s){start_pc = strtoull(s, 0, 0);});
   parser.option(0, "hartids", 1, hartids_parser);
-  parser.option(0, "ic", 1, [&](const char* s){ic.reset(new icache_sim_t(s));});
+  /* Cache Simulator */
+  parser.option(0, "ic", 1, [&](const char* s){ic.reset(new icache_sim_t(s));}); // reset(): Replace the stored pointer.
   parser.option(0, "dc", 1, [&](const char* s){dc.reset(new dcache_sim_t(s));});
   parser.option(0, "l2", 1, [&](const char* s){l2.reset(cache_sim_t::construct(s, "L2$"));});
+  /* --------------- */
   parser.option(0, "log-cache-miss", 0, [&](const char* s){log_cache = true;});
   parser.option(0, "isa", 1, [&](const char* s){isa = s;});
   parser.option(0, "priv", 1, [&](const char* s){priv = s;});
@@ -377,7 +383,7 @@ int main(int argc, char** argv)
      }
   });
 
-  auto argv1 = parser.parse(argv);
+  auto argv1 = parser.parse(argv); // execute function binded to option
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);
   if (mems.empty())
     mems = make_mems("2048");
@@ -454,17 +460,19 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  if (ic && l2) ic->set_miss_handler(&*l2);
+  /* Cache Simulator */
+  if (ic && l2) ic->set_miss_handler(&*l2); // set miss handler to L2 Cache
   if (dc && l2) dc->set_miss_handler(&*l2);
   if (ic) ic->set_log(log_cache);
   if (dc) dc->set_log(log_cache);
-  for (size_t i = 0; i < nprocs; i++)
-  {
+  for (size_t i = 0; i < nprocs; i++) // nprocs default 1
+  { // s is simulator, mmu is memory management unit
     if (ic) s.get_core(i)->get_mmu()->register_memtracer(&*ic);
     if (dc) s.get_core(i)->get_mmu()->register_memtracer(&*dc);
     for (auto e : extensions)
       s.get_core(i)->register_extension(e());
   }
+  /* --------------- */
 
   s.set_debug(debug);
   s.configure_log(log, log_commits);

@@ -37,7 +37,7 @@ class memtracer_list_t : public memtracer_t
   void trace(uint64_t addr, size_t bytes, access_type type)
   {
     for (std::vector<memtracer_t*>::iterator it = list.begin(); it != list.end(); ++it)
-      (*it)->trace(addr, bytes, type);
+      (*it)->trace(addr, bytes, type); // request both I-cache and D-cache (Selectively perform only one)
   }
   void hook(memtracer_t* h)
   {

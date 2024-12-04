@@ -9,7 +9,7 @@
 #include <map>
 #include <cstdint>
 
-class lfsr_t
+class lfsr_t // related to generate random number
 {
  public:
   lfsr_t() : reg(1) {}
@@ -19,7 +19,7 @@ class lfsr_t
   uint32_t reg;
 };
 
-class cache_sim_t
+class cache_sim_t // L2 Cache
 {
  public:
   cache_sim_t(size_t sets, size_t ways, size_t linesz, const char* name);
@@ -31,9 +31,10 @@ class cache_sim_t
   void set_miss_handler(cache_sim_t* mh) { miss_handler = mh; }
   void set_log(bool _log) { log = _log; }
 
-  static cache_sim_t* construct(const char* config, const char* name);
+  static cache_sim_t *construct(const char *config, const char *name); // cache_sim_t::construct(s, "L2$"));
+  // config = <Number of set>:<Number of way>:<Block size>(:lru)
 
- protected:
+protected:
   static const uint64_t VALID = 1ULL << 63;
   static const uint64_t DIRTY = 1ULL << 62;
 
@@ -43,20 +44,24 @@ class cache_sim_t
   lfsr_t lfsr;
   cache_sim_t* miss_handler;
 
-  size_t sets;
-  size_t ways;
-  size_t linesz;
+  /* Cache Simulator */
+  size_t sets; // Number of sets
+  size_t ways; // Number of ways in set
+  size_t linesz; // block size
+  /* --------------- */
   size_t idx_shift;
 
   uint64_t* tags;
-  
-  uint64_t read_accesses;
+  uint64_t read_accesses; // Number of access
   uint64_t read_misses;
-  uint64_t bytes_read;
+  uint64_t bytes_read; // Number of bytes readed
   uint64_t write_accesses;
+
+  /* Cache Simulator */
   uint64_t write_misses;
   uint64_t bytes_written;
   uint64_t writebacks;
+  /* --------------- */
 
   std::string name;
   bool log;
@@ -80,7 +85,7 @@ class cache_memtracer_t : public memtracer_t
  public:
   cache_memtracer_t(const char* config, const char* name)
   {
-    cache = cache_sim_t::construct(config, name);
+    cache = cache_sim_t::construct(config, name); // construct
   }
   ~cache_memtracer_t()
   {
@@ -99,13 +104,13 @@ class cache_memtracer_t : public memtracer_t
   cache_sim_t* cache;
 };
 
-class icache_sim_t : public cache_memtracer_t
+class icache_sim_t : public cache_memtracer_t // I-cache in L1 Cache
 {
  public:
-  icache_sim_t(const char* config) : cache_memtracer_t(config, "I$") {}
-  bool interested_in_range(uint64_t begin, uint64_t end, access_type type)
-  {
-    return type == FETCH;
+   icache_sim_t(const char *config) : cache_memtracer_t(config, "I$") {} // config = <Number of set>:<Number of way>:<Block size>(:lru)
+   bool interested_in_range(uint64_t begin, uint64_t end, access_type type)
+   {
+     return type == FETCH;
   }
   void trace(uint64_t addr, size_t bytes, access_type type)
   {
@@ -113,10 +118,10 @@ class icache_sim_t : public cache_memtracer_t
   }
 };
 
-class dcache_sim_t : public cache_memtracer_t
+class dcache_sim_t : public cache_memtracer_t // D-cache in L1 Cache
 {
  public:
-  dcache_sim_t(const char* config) : cache_memtracer_t(config, "D$") {}
+  dcache_sim_t(const char* config) : cache_memtracer_t(config, "D$") {} // config
   bool interested_in_range(uint64_t begin, uint64_t end, access_type type)
   {
     return type == LOAD || type == STORE;

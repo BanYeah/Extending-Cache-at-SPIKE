@@ -438,6 +438,6 @@ reg_t mmu_t::walk(reg_t addr, access_type type, reg_t mode, bool virt, bool hlvx
 
 void mmu_t::register_memtracer(memtracer_t* t)
 {
-  flush_tlb();
-  tracer.hook(t);
+  flush_tlb(); // flush
+  tracer.hook(t); // push I-cache and D-cache in tracer's list
 }
