@@ -219,7 +219,7 @@ uint64_t *fa_cache_sim_t::check_tag(uint64_t addr) // Check Cache Hit or Cache M
   else {
     if (lru) {
       for (auto& entry : tag_priority)
-        if (entry.first != it->first && entry.second < it->second) 
+        if (entry.first != it->first && entry.second < tag_priority[it->first]) 
           entry.second++;
         else if (entry.first == it->first)
           entry.second = 0;
@@ -254,6 +254,6 @@ uint64_t fa_cache_sim_t::victimize(uint64_t addr) // determine to evict which da
   }
   tags[addr >> idx_shift] = (addr >> idx_shift) | VALID; // replace Cache
   if (lru) tag_priority[addr >> idx_shift] = 0;
-  
+
   return victim;
 }
