@@ -221,8 +221,7 @@ uint64_t *fa_cache_sim_t::check_tag(uint64_t addr) // Check Cache Hit or Cache M
       for (auto& entry : tag_priority)
         if (entry.first != it->first && entry.second < tag_priority[it->first]) 
           entry.second++;
-        else if (entry.first == it->first)
-          entry.second = 0;
+      tag_priority[it->first] = 0;
     }
     return &it->second;
   }
