@@ -43,6 +43,8 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --ic=<S>:<W>:<B>      Instantiate a cache model with S sets,\n");
   fprintf(stderr, "  --dc=<S>:<W>:<B>        W ways, and B-byte blocks (with S and\n");
   fprintf(stderr, "  --l2=<S>:<W>:<B>        B both powers of 2).\n");
+  fprintf(stderr, "  --wp=<wb|wt>          Write policy of a cache model\n");
+  fprintf(stderr, "  --ap=<wa|nwa>         Write Allocate policy of a cache model\n");
   /* --------------- */
   fprintf(stderr, "  --device=<P,B,A>      Attach MMIO plugin device from an --extlib library\n");
   fprintf(stderr, "                          P -- Name of the MMIO plugin\n");
@@ -232,6 +234,8 @@ int main(int argc, char** argv)
   std::unique_ptr<icache_sim_t> ic;
   std::unique_ptr<dcache_sim_t> dc;
   std::unique_ptr<cache_sim_t> l2;
+  bool wb = true; // write back <-> write through
+  bool wa = true; // write allocate <-> no write allocate
   /* --------------- */
   bool log_cache = false;
   bool log_commits = false;
@@ -332,6 +336,16 @@ int main(int argc, char** argv)
   parser.option(0, "ic", 1, [&](const char* s){ic.reset(new icache_sim_t(s));}); // reset(): Replace the stored pointer.
   parser.option(0, "dc", 1, [&](const char* s){dc.reset(new dcache_sim_t(s));});
   parser.option(0, "l2", 1, [&](const char* s){l2.reset(cache_sim_t::construct(s, "L2$"));});
+  parser.option(0, "wp", 1, [&](const char* s){
+    if (strcmp(s, "wb") == 0) wb = true;
+    else if (strcmp(s, "wt") == 0) wb = false;
+    else help();
+  });
+  parser.option(0, "ap", 1, [&](const char *s){
+    if (strcmp(s, "wa") == 0) wa = true;
+    else if (strcmp(s, "nwa") == 0) wa = false;
+    else help();
+  });
   /* --------------- */
   parser.option(0, "log-cache-miss", 0, [&](const char* s){log_cache = true;});
   parser.option(0, "isa", 1, [&](const char* s){isa = s;});
@@ -463,6 +477,9 @@ int main(int argc, char** argv)
   /* Cache Simulator */
   if (ic && l2) ic->set_miss_handler(&*l2); // set miss handler to L2 Cache
   if (dc && l2) dc->set_miss_handler(&*l2);
+  if (ic) ic->set_write_policy(wb, wa);
+  if (dc) dc->set_write_policy(wb, wa);
+  if (l2) l2->set_write_policy(wb, wa);
   if (ic) ic->set_log(log_cache);
   if (dc) dc->set_log(log_cache);
   for (size_t i = 0; i < nprocs; i++) // nprocs default 1

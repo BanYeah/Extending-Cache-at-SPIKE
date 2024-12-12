@@ -29,6 +29,7 @@ public:
   void access(uint64_t addr, size_t bytes, bool store);
   void print_stats();
   void set_miss_handler(cache_sim_t* mh) { miss_handler = mh; }
+  void set_write_policy(bool _wb, bool _wa) { wb = _wb, wa = _wa; }
   void set_log(bool _log) { log = _log; }
 
   static cache_sim_t *construct(const char *config, const char *name); // cache_sim_t::construct(s, "L2$"));
@@ -48,6 +49,8 @@ protected:
   size_t ways;   // Number of ways in set
   size_t linesz; // block size
   bool lru;      // LRU replacement policy
+  bool wb;       // write back <-> write through
+  bool wa;       // write allocate <-> no write allocate
   size_t idx_shift;
 
   uint64_t* tags;
@@ -92,6 +95,10 @@ public:
   void set_miss_handler(cache_sim_t* mh)
   {
     cache->set_miss_handler(mh);
+  }
+  void set_write_policy(bool wb, bool wa) 
+  { 
+    cache->set_write_policy(wb, wa);
   }
   void set_log(bool log)
   {
