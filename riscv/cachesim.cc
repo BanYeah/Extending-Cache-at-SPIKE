@@ -6,8 +6,8 @@
 #include <iostream>
 #include <iomanip>
 
-cache_sim_t::cache_sim_t(size_t _sets, size_t _ways, size_t _linesz, const char* _name)
-: sets(_sets), ways(_ways), linesz(_linesz), name(_name), log(false)
+cache_sim_t::cache_sim_t(size_t _sets, size_t _ways, size_t _linesz, bool _lru, const char* _name)
+: sets(_sets), ways(_ways), linesz(_linesz), lru(_lru), name(_name), log(false)
 {
   init(); // init()
 }
@@ -15,7 +15,8 @@ cache_sim_t::cache_sim_t(size_t _sets, size_t _ways, size_t _linesz, const char*
 static void help()
 {
   std::cerr << "Cache configurations must be of the form" << std::endl;
-  std::cerr << "  sets:ways:blocksize" << std::endl;
+  std::cerr << "  sets:ways:blocksize (Random replacement policy)" << std::endl;
+  std::cerr << "  sets:ways:blocksize:lru (LRU replacement policy)" << std::endl;
   std::cerr << "where sets, ways, and blocksize are positive integers, with" << std::endl;
   std::cerr << "sets and blocksize both powers of two and blocksize at least 8." << std::endl;
   exit(1);
@@ -27,14 +28,23 @@ cache_sim_t* cache_sim_t::construct(const char* config, const char* name)
   if (!wp++) help(); // help message
   const char* bp = strchr(wp, ':');
   if (!bp++) help();
+  const char *lp = strchr(bp, ':');
 
   size_t sets = atoi(std::string(config, wp).c_str()); // number of sets
   size_t ways = atoi(std::string(wp, bp).c_str()); // number of ways
-  size_t linesz = atoi(bp); // block size
+  size_t linesz = !lp? atoi(bp): atoi(std::string(bp, lp + 1).c_str()); // block size
+  bool lru;
+
+  if (!lp++)
+    lru = false;
+  else if (std::string(lp) == "lru")
+    lru = true;
+  else
+    help();
 
   if (ways > 4 /* empirical */ && sets == 1)
-    return new fa_cache_sim_t(ways, linesz, name); // Fully-Associative
-  return new cache_sim_t(sets, ways, linesz, name);
+    return new fa_cache_sim_t(ways, linesz, lru, name); // Fully-Associative
+  return new cache_sim_t(sets, ways, linesz, lru, name);
 }
 
 void cache_sim_t::init()
@@ -164,8 +174,8 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
 }
 
 // Fully Associative Cache
-fa_cache_sim_t::fa_cache_sim_t(size_t ways, size_t linesz, const char* name)
-  : cache_sim_t(1, ways, linesz, name)
+fa_cache_sim_t::fa_cache_sim_t(size_t ways, size_t linesz, bool lru, const char* name)
+  : cache_sim_t(1, ways, linesz, lru, name)
 {
 }
 
