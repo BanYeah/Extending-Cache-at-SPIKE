@@ -209,10 +209,9 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
     else if (store && miss_handler) // write through
       miss_handler->access(addr & ~(linesz - 1), linesz, true);
   }
-  else { // no write allocate (write)
+  else // no write allocate (write)
     if (miss_handler)
       miss_handler->access(addr & ~(linesz - 1), linesz, true);
-  }
 }
 
 // Fully Associative Cache
