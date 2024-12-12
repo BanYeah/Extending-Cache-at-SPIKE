@@ -23,7 +23,7 @@ static void help()
 
 cache_sim_t* cache_sim_t::construct(const char* config, const char* name)
 {
-  const char *wp = strchr(config, ':'); // strchr: find target char in string
+  const char *wp = strchr(config, ':'); // strchr(): find target char in string
   if (!wp++) help(); // help message
   const char* bp = strchr(wp, ':');
   if (!bp++) help();
@@ -113,7 +113,7 @@ uint64_t *cache_sim_t::check_tag(uint64_t addr) // Check Cache Hit or Cache Miss
   return NULL;
 }
 
-uint64_t cache_sim_t::victimize(uint64_t addr) // determine to evict which data from Cache
+uint64_t cache_sim_t::victimize(uint64_t addr) // determine which data evicted from Cache
 {
   size_t idx = (addr >> idx_shift) & (sets - 1); // Index used to select the set
   size_t way = lfsr.next() % ways; // lfsr.next(): generate random number
@@ -148,7 +148,7 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
 
   uint64_t victim = victimize(addr); // determine to evict which data in Random
 
-  if ((victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when exist victim and, victim is both valid and "dirty"
+  if ((victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
   {
     uint64_t dirty_addr = (victim & ~(VALID | DIRTY)) << idx_shift; // victim is tag, so shift as much as Index
     if (miss_handler) // if the cache is I-cache or D-cache, miss handler is L2 Cache. else NULL
