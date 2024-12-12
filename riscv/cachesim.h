@@ -44,25 +44,21 @@ protected:
   lfsr_t lfsr;
   cache_sim_t* miss_handler;
 
-  /* Cache Simulator */
   size_t sets;   // Number of sets
   size_t ways;   // Number of ways in set
   size_t linesz; // block size
   bool lru;      // LRU replacement policy
-  /* --------------- */
   size_t idx_shift;
 
   uint64_t* tags;
+  size_t* tag_priority;
   uint64_t read_accesses; // Number of access
   uint64_t read_misses;
   uint64_t bytes_read; // Number of bytes readed
   uint64_t write_accesses;
-
-  /* Cache Simulator */
   uint64_t write_misses;
   uint64_t bytes_written;
   uint64_t writebacks;
-  /* --------------- */
 
   std::string name;
   bool log;
@@ -79,6 +75,7 @@ public:
 private:
   static bool cmp(uint64_t a, uint64_t b);
   std::map<uint64_t, uint64_t> tags;
+  std::map<uint64_t, size_t> tag_priority;
 };
 
 class cache_memtracer_t : public memtracer_t

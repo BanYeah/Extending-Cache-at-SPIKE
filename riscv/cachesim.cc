@@ -59,6 +59,8 @@ void cache_sim_t::init()
     idx_shift++;
 
   tags = new uint64_t[sets*ways](); // initialize each element to 0
+  tag_priority = new size_t[sets*ways]();
+
   read_accesses = 0;
   read_misses = 0;
   bytes_read = 0;
@@ -76,12 +78,16 @@ cache_sim_t::cache_sim_t(const cache_sim_t& rhs)
 {
   tags = new uint64_t[sets*ways];
   memcpy(tags, rhs.tags, sets*ways*sizeof(uint64_t));
+
+  tag_priority = new size_t[sets * ways];
+  memcpy(tag_priority, rhs.tag_priority, sets * ways * sizeof(size_t));
 }
 
 cache_sim_t::~cache_sim_t() // Destructor
 {
   print_stats(); // Print a result of cache simulation
-  delete [] tags;
+  delete[] tags;
+  delete[] tag_priority;
 }
 
 void cache_sim_t::print_stats() // Result of cache simulation
@@ -117,19 +123,45 @@ uint64_t *cache_sim_t::check_tag(uint64_t addr) // Check Cache Hit or Cache Miss
   size_t tag = (addr >> idx_shift) | VALID;
 
   for (size_t i = 0; i < ways; i++) // iterate all way in set
-    if (tag == (tags[idx*ways + i] & ~DIRTY))
+    if (tag == (tags[idx*ways + i] & ~DIRTY)) { // ignore dirty bit
+      if (lru) {
+        for (size_t j = 0; j < ways; j++)
+          if (tag_priority[idx*ways + j] < tag_priority[idx*ways + i])
+            tag_priority[idx*ways + j]++;
+        
+        tag_priority[idx*ways + i] = 0;
+      }
+
       return &tags[idx*ways + i];
+    }
 
   return NULL;
 }
 
 uint64_t cache_sim_t::victimize(uint64_t addr) // determine which data evicted from Cache
 {
+  uint64_t victim = 0;
   size_t idx = (addr >> idx_shift) & (sets - 1); // Index used to select the set
-  size_t way = lfsr.next() % ways; // lfsr.next(): generate random number
 
-  uint64_t victim = tags[idx*ways + way];
-  tags[idx*ways + way] = (addr >> idx_shift) | VALID; // replace Cache
+  if (lru) {
+    size_t max_priority = 0, max_tag_idx = idx*ways;
+    for (size_t i = 0; i < ways; i++) {
+      if (++tag_priority[idx*ways + i] > max_priority) {
+        max_priority = tag_priority[idx*ways + i];
+        max_tag_idx = idx*ways + i;
+      }
+    }
+
+    victim = tags[max_tag_idx];
+    tags[max_tag_idx] = (addr >> idx_shift) | VALID; // replace Cache
+    tag_priority[max_tag_idx] = 0;
+  }
+  else { // Random
+    size_t way = lfsr.next() % ways; // lfsr.next(): generate random number
+
+    victim = tags[idx*ways + way];
+    tags[idx*ways + way] = (addr >> idx_shift) | VALID; // replace Cache
+  }
 
   return victim;
 }
@@ -182,19 +214,46 @@ fa_cache_sim_t::fa_cache_sim_t(size_t ways, size_t linesz, bool lru, const char*
 uint64_t *fa_cache_sim_t::check_tag(uint64_t addr) // Check Cache Hit or Cache Miss
 {
   auto it = tags.find(addr >> idx_shift);
-  return it == tags.end() ? NULL : &it->second;
+  if (it == tags.end() || !(it->second & VALID))
+    return NULL;
+  else {
+    if (lru) {
+      for (auto& entry : tag_priority)
+        if (entry.first != it->first && entry.second < it->second) 
+          entry.second++;
+        else if (entry.first == it->first)
+          entry.second = 0;
+    }
+    return &it->second;
+  }
 }
 
 uint64_t fa_cache_sim_t::victimize(uint64_t addr) // determine to evict which data from Cache
 {
-  uint64_t old_tag = 0;
+  uint64_t victim = 0;
   if (tags.size() == ways) // cache is full
   {
-    auto it = tags.begin();
-    std::advance(it, lfsr.next() % ways); // lfsr.next(): generate random number
-    old_tag = it->second;
-    tags.erase(it);
+    if (lru) {
+      size_t max_priority = 0, max_tag_key;
+      for (auto &entry : tag_priority)
+        if (++entry.second > max_priority) {
+          max_priority = entry.second;
+          max_tag_key = entry.first;
+        }
+
+      victim = tags[max_tag_key];
+      tags.erase(max_tag_key);
+      tag_priority.erase(max_tag_key);
+    }
+    else { // Random
+      auto it = tags.begin();
+      std::advance(it, lfsr.next() % ways); // lfsr.next(): generate random number
+      victim = it->second;
+      tags.erase(it);
+    }
   }
   tags[addr >> idx_shift] = (addr >> idx_shift) | VALID; // replace Cache
-  return old_tag;
+  if (lru) tag_priority[addr >> idx_shift] = 0;
+  
+  return victim;
 }
