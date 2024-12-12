@@ -190,23 +190,29 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
               << std::hex << addr << std::endl;
   }
 
-  uint64_t victim = victimize(addr); // determine to evict which data in Random
+  if (!(store && !wa)) { // write allocate | no write allocate (read)
+    uint64_t victim = victimize(addr); // determine to evict which data in Random
 
-  if (wb && (victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
-  {
-    uint64_t dirty_addr = (victim & ~(VALID | DIRTY)) << idx_shift; // victim is tag, so shift as much as Index
-    if (miss_handler) // if the cache is I-cache or D-cache, miss handler is L2 Cache. else NULL
-      miss_handler->access(dirty_addr, linesz, true); // access dirty_addr in L2 Cache
-    writebacks++;
+    if (wb && (victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
+    {
+      uint64_t dirty_addr = (victim & ~(VALID | DIRTY)) << idx_shift; // victim is tag, so shift as much as Index
+      if (miss_handler) // if the cache is I-cache or D-cache, miss handler is L2 Cache. else NULL
+        miss_handler->access(dirty_addr, linesz, true); // access dirty_addr in L2 Cache
+      writebacks++;
+    }
+
+    if (miss_handler)
+      miss_handler->access(addr & ~(linesz-1), linesz, false); // for including policy in L2 Cache
+
+    if (store && wb) // write back
+      *check_tag(addr) |= DIRTY; // on dirty bit
+    else if (store && miss_handler) // write through
+      miss_handler->access(addr & ~(linesz - 1), linesz, true);
   }
-
-  if (miss_handler)
-    miss_handler->access(addr & ~(linesz-1), linesz, false); // for including policy in L2 Cache
-
-  if (store && wb) // write back
-    *check_tag(addr) |= DIRTY; // on dirty bit
-  else if (store && miss_handler) // write through
-    miss_handler->access(addr & ~(linesz - 1), linesz, true);
+  else { // no write allocate (write)
+    if (miss_handler)
+      miss_handler->access(addr & ~(linesz - 1), linesz, true);
+  }
 }
 
 // Fully Associative Cache
