@@ -174,8 +174,10 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
   uint64_t* hit_way = check_tag(addr); // Check Cache Hit or Cache Miss
   if (likely(hit_way != NULL)) // Cache Hit
   {
-    if (store) // write
-      *hit_way |= DIRTY; // on Dirty bit
+    if (store && wb) // write back
+      *hit_way |= DIRTY; // on dirty bit
+    else if (store && miss_handler) // write through
+      miss_handler->access(addr & ~(linesz - 1), linesz, true);  
     return; // return
   }
 
@@ -190,7 +192,7 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
 
   uint64_t victim = victimize(addr); // determine to evict which data in Random
 
-  if ((victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
+  if (wb && (victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
   {
     uint64_t dirty_addr = (victim & ~(VALID | DIRTY)) << idx_shift; // victim is tag, so shift as much as Index
     if (miss_handler) // if the cache is I-cache or D-cache, miss handler is L2 Cache. else NULL
@@ -201,8 +203,10 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
   if (miss_handler)
     miss_handler->access(addr & ~(linesz-1), linesz, false); // for including policy in L2 Cache
 
-  if (store) // write
-    *check_tag(addr) |= DIRTY; // on Dirty bit
+  if (store && wb) // write back
+    *check_tag(addr) |= DIRTY; // on dirty bit
+  else if (store && miss_handler) // write through
+    miss_handler->access(addr & ~(linesz - 1), linesz, true);
 }
 
 // Fully Associative Cache
