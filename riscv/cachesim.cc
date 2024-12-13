@@ -190,7 +190,7 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
               << std::hex << addr << std::endl;
   }
 
-  if (!(store && !wa)) { // write allocate | no write allocate (read)
+  if (wa || (!store && !wa)) { // write allocate | no write allocate (read)
     uint64_t victim = victimize(addr); // determine to evict which data in Random
 
     if (wb && (victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
