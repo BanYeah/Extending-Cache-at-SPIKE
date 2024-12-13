@@ -191,7 +191,7 @@ void cache_sim_t::access(uint64_t addr, size_t bytes, bool store) // access to a
   }
 
   if (wa || (!store && !wa)) { // write allocate | no write allocate (read)
-    uint64_t victim = victimize(addr); // determine to evict which data in Random
+    uint64_t victim = victimize(addr); // determine to evict which data and replace data
 
     if (wb && (victim & (VALID | DIRTY)) == (VALID | DIRTY)) // when victim exists and, victim is both valid and "dirty"
     {
